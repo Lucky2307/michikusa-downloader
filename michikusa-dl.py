@@ -4,10 +4,11 @@ import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from PIL import Image
 from typing import List
 import argparse
-import time
+import os
 
 
 def get_file_content_chrome(driver, uri):
@@ -52,12 +53,21 @@ def is_current_page_exist(driver: uc.Chrome, page_count: int):
             return False
     return True
 
+
 def move_reader_to(driver: uc.Chrome, target_page: int):
-    reader_page_counter = int(driver.find_element(By.ID, "menu_slidercaption").get_attribute("innerText").split("/")[0])
+    reader_page_counter = int(
+        driver.find_element(By.ID, "menu_slidercaption")
+        .get_attribute("innerText")
+        .split("/")[0]
+    )
     while page_count - reader_page_counter > 1:
         driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ARROW_LEFT)
-        reader_page_counter = int(driver.find_element(By.ID, "menu_slidercaption").get_attribute("innerText").split("/")[0])
-    time.sleep(5)
+        reader_page_counter = int(
+            driver.find_element(By.ID, "menu_slidercaption")
+            .get_attribute("innerText")
+            .split("/")[0]
+        )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use reader link")
@@ -65,26 +75,30 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--Output", help="Output dir, default is out/")
     args = parser.parse_args()
     url = args.url
-    output_dir = (
-        "out/"
-        if args.Output == None
-        else args.Output
-        if args.Output[-1] == "/"
-        else args.Output + "/"
-    )
+    output_dir = "out/" if args.Output == None else args.Output
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     driver = uc.Chrome()
     driver.get(url)
-    time.sleep(5)
 
     page_count = 0
     while is_current_page_exist(driver, page_count) is True:
         page = []
-        content_element = driver.find_element(By.XPATH, f"//*[@id=\"content-p{page_count}\"]/div")
-        if content_element.get_attribute("class") == "pt-loading": move_reader_to(driver, page_count)
-        for element in (
-            driver.find_element(By.XPATH, f"//*[@id=\"content-p{page_count}\"]/div")
-            .find_elements(By.XPATH, ".//div//img")
+        content_element = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f'//*[@id="content-p{page_count}"]/div')
+            )
+        )
+        if content_element.get_attribute("class") == "pt-loading":
+            move_reader_to(driver, page_count)
+        for element in WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located(
+                (
+                    By.XPATH,
+                    f'//*[@id="content-p{page_count}"]/div[@class="pt-img"]/div/img',
+                )
+            )
         ):
             bytes = get_file_content_chrome(driver, element.get_attribute("src"))
             page.append(Image.open(BytesIO(bytes)))
