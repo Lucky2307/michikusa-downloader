@@ -3,6 +3,7 @@ from io import BytesIO
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
 from PIL import Image
 from typing import List
 import argparse
@@ -42,19 +43,21 @@ def merge_images(image_list: List[Image.Image]):
 
 def is_current_page_exist(driver: uc.Chrome, page_count: int):
     try:
-        driver.find_element(By.ID, f"content-p{page_count}").find_element(
-            By.CLASS_NAME, "pt-img"
-        )
+        driver.find_element(By.ID, f"content-p{page_count}")
     except:
-        # There's probably a better way than this
-        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ARROW_LEFT)
-        time.sleep(2)
+        move_reader_to(driver, page_count)
         try:
             driver.find_element(By.ID, f"content-p{page_count}")
         except:
             return False
     return True
 
+def move_reader_to(driver: uc.Chrome, target_page: int):
+    reader_page_counter = int(driver.find_element(By.ID, "menu_slidercaption").get_attribute("innerText").split("/")[0])
+    while page_count - reader_page_counter > 1:
+        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ARROW_LEFT)
+        reader_page_counter = int(driver.find_element(By.ID, "menu_slidercaption").get_attribute("innerText").split("/")[0])
+    time.sleep(5)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use reader link")
@@ -71,15 +74,16 @@ if __name__ == "__main__":
     )
 
     driver = uc.Chrome()
-    driver.implicitly_wait(5)
     driver.get(url)
+    time.sleep(5)
 
     page_count = 0
     while is_current_page_exist(driver, page_count) is True:
         page = []
+        content_element = driver.find_element(By.XPATH, f"//*[@id=\"content-p{page_count}\"]/div")
+        if content_element.get_attribute("class") == "pt-loading": move_reader_to(driver, page_count)
         for element in (
-            driver.find_element(By.ID, f"content-p{page_count}")
-            .find_element(By.CLASS_NAME, "pt-img")
+            driver.find_element(By.XPATH, f"//*[@id=\"content-p{page_count}\"]/div")
             .find_elements(By.XPATH, ".//div//img")
         ):
             bytes = get_file_content_chrome(driver, element.get_attribute("src"))
