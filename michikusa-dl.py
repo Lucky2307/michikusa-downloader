@@ -73,8 +73,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use reader link")
     parser.add_argument("url", metavar="URL", type=str, help="Input URL")
     parser.add_argument("-o", "--Output", help="Output dir, default is out/")
+    parser.add_argument("-t", "--Timeout", help="Timeout in seconds, default is 20")
     args = parser.parse_args()
     url = args.url
+    timeout = 20 if args.Timeout == None else args.Timeout
     output_dir = "out/" if args.Output == None else args.Output
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -85,14 +87,14 @@ if __name__ == "__main__":
     page_count = 0
     while is_current_page_exist(driver, page_count) is True:
         page = []
-        content_element = WebDriverWait(driver, 20).until(
+        content_element = WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located(
                 (By.XPATH, f'//*[@id="content-p{page_count}"]/div')
             )
         )
         if content_element.get_attribute("class") == "pt-loading":
             move_reader_to(driver, page_count)
-        for element in WebDriverWait(driver, 20).until(
+        for element in WebDriverWait(driver, timeout).until(
             EC.presence_of_all_elements_located(
                 (
                     By.XPATH,
