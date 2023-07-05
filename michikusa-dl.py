@@ -6,6 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from PIL import Image
 from typing import List
 import argparse
+import time
 
 
 def get_file_content_chrome(driver, uri):
@@ -41,10 +42,13 @@ def merge_images(image_list: List[Image.Image]):
 
 def is_current_page_exist(driver: uc.Chrome, page_count: int):
     try:
-        driver.find_element(By.ID, f"content-p{page_count}")
+        driver.find_element(By.ID, f"content-p{page_count}").find_element(
+            By.CLASS_NAME, "pt-img"
+        )
     except:
         # There's probably a better way than this
         driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ARROW_LEFT)
+        time.sleep(2)
         try:
             driver.find_element(By.ID, f"content-p{page_count}")
         except:
@@ -54,15 +58,21 @@ def is_current_page_exist(driver: uc.Chrome, page_count: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Use reader link")
-    parser.add_argument("url", metavar="URL", type=str, help="Input URL", required=True)
-    parser.add_argument("-o", "--Output", help="Output dir")
-    parser.parse_args()
+    parser.add_argument("url", metavar="URL", type=str, help="Input URL")
+    parser.add_argument("-o", "--Output", help="Output dir, default is out/")
+    args = parser.parse_args()
+    url = args.url
+    output_dir = (
+        "out/"
+        if args.Output == None
+        else args.Output
+        if args.Output[-1] == "/"
+        else args.Output + "/"
+    )
 
     driver = uc.Chrome()
     driver.implicitly_wait(5)
-    driver.get(
-        "https://michikusacomics.jp/wp-content/uploads/data/27_hutsukoi/01/index.html"
-    )
+    driver.get(url)
 
     page_count = 0
     while is_current_page_exist(driver, page_count) is True:
@@ -75,4 +85,5 @@ if __name__ == "__main__":
             bytes = get_file_content_chrome(driver, element.get_attribute("src"))
             page.append(Image.open(BytesIO(bytes)))
         page = merge_images(page)
-        page.save(f"{page_count+1}.png")
+        page.save(f"{output_dir}/{page_count+1}.png")
+        page_count += 1
